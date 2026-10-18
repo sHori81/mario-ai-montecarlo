@@ -30,7 +30,10 @@ package ch.idsia.scenarios;
 import ch.idsia.benchmark.tasks.BasicTask;
 import ch.idsia.tools.MarioAIOptions;
 import ch.idsia.agents.Agent;
-import ch.idsia.agents.controllers.ForwardJumpingAgent;
+import ch.idsia.agents.controllers.ForwardAgent;
+import ch.idsia.agents.controllers.OwnAgent;
+import ch.idsia.agents.controllers.Task2Agent;
+import ch.idsia.agents.controllers.Task3Agent;
 
 
 /**
@@ -43,11 +46,24 @@ public static void main(String[] args)
 {
     final MarioAIOptions marioAIOptions = new MarioAIOptions(args);
 
-    final Agent agent = new ForwardJumpingAgent();
+    final Agent agent = new Task3Agent();
     marioAIOptions.setAgent(agent);
     
-    int seed = 99;
+    marioAIOptions.setEnemies("g");
+    marioAIOptions.setCannonsCount(false);
+    marioAIOptions.setTubesCount(false);
+    marioAIOptions.setGapsCount(false);
+    marioAIOptions.setCoinsCount(true);
+    marioAIOptions.setHillStraightCount(false);
+    marioAIOptions.setBlocksCount(false);
+    
+    int d = 1;
+    marioAIOptions.setLevelDifficulty(d);
+    
+    int seed = 93;
     marioAIOptions.setLevelRandSeed(seed);
+    
+    
     
     final BasicTask basicTask = new BasicTask(marioAIOptions);
     basicTask.setOptionsAndReset(marioAIOptions);

@@ -102,13 +102,13 @@ public EvaluationInfo()
 
 public int computeBasicFitness()
 {
-    return distancePassedPhys - timeSpent + coinsGained + marioStatus * marioSystemOfValues.win;
+    return distancePassedPhys - timeSpent + coinsGained / 2 + marioStatus * marioSystemOfValues.win;
 }
 
 public int computeWeightedFitness(SystemOfValues sov)
 {
     return
-            distancePassedPhys * sov.distance +
+            10 * distancePassedPhys * sov.distance +
                     flowersDevoured * sov.flowerFire +
                     marioStatus * sov.win +
                     marioMode * sov.mode +

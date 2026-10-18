@@ -27,8 +27,12 @@
 
 package ch.idsia.agents.controllers;
 
+import java.util.Random;
+
 import ch.idsia.agents.Agent;
+import ch.idsia.benchmark.mario.engine.GeneralizerLevelScene;
 import ch.idsia.benchmark.mario.engine.sprites.Mario;
+import ch.idsia.benchmark.mario.engine.sprites.Sprite;
 import ch.idsia.benchmark.mario.environments.Environment;
 
 /**
@@ -51,11 +55,44 @@ public OwnAgent()
 
 public void reset()
 {
-    action = new boolean[Environment.numberOfKeys];
+	action = new boolean[Environment.numberOfKeys];
 }
 
-public boolean[] getAction()
-{
-    return action;
+public boolean isObstacle(int r, int c){
+	return getReceptiveFieldCellValue(r,c)==GeneralizerLevelScene.BRICK 
+			|| getReceptiveFieldCellValue(r,c)==GeneralizerLevelScene.BORDER_CANNOT_PASS_THROUGH
+			|| getReceptiveFieldCellValue(r,c)==GeneralizerLevelScene.FLOWER_POT_OR_CANNON
+			|| getReceptiveFieldCellValue(r,c)==GeneralizerLevelScene.LADDER;
 }
+
+public boolean isHole(int c){
+	for(int i = 1; i < 4 ; i++) {
+		if(getReceptiveFieldCellValue(marioEgoRow + i, c) != 0) {
+			return false;
+		}
+	}
+	return true;	 
 }
+
+
+public boolean[] getAction(){
+	if(isObstacle(marioEgoRow, marioEgoCol + 1)
+			|| isObstacle(marioEgoRow, marioEgoCol + 2)){
+				action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+			}
+	
+	if(isHole(marioEgoCol + 1)) {
+		action[Mario.KEY_RIGHT] = false;
+		action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+		action[Mario.KEY_RIGHT] = true;
+	}else {
+		action[Mario.KEY_RIGHT] = true;
+	}
+			return action;
+
+}
+
+
+
+}
+

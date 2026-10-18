@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 
 import ch.idsia.agents.Agent;
 import ch.idsia.agents.LearningAgent;
@@ -66,9 +67,9 @@ private static void evaluateSubmission(MarioAIOptions marioAIOptions, LearningAg
     /* LearningAgentの初期化 */
     learningAgent.init();
 
-//    for(int i=0 ; i<LearningTask.getEvaluationQuota() ; i++){	//forで繰り返す???
-//    	System.out.println("世代 : "+i);
-    learningAgent.learn();
+    for(int i=0 ; i<LearningTask.getEvaluationQuota() ; i++){	//forで繰り返す???
+ 	System.out.println("世代 : "+i);
+    learningAgent.learn();}
    	// launches the training process. numberOfTrials happen here
    	/*for(int i = 0; i < 64; ++i){
    		System.out.println(QAgent.qValue[i][0][2]);
@@ -148,11 +149,13 @@ private static int oldEval(MarioAIOptions marioAIOptions, LearningAgent learning
 public static void main(String[] args){
 
 	/* 学習に用いるAgentを指定 */
+	//Task3
+	//LearningAgent learningAgent = new LearningWithMC("-lhs off -ltb on -lg off -lb off -ld 1 -ls 0 -le g");
 	/* MainTask4_1.java */
 	LearningAgent learningAgent = new LearningWithMC("-lde on -ltb off -ld 2 -ls 0 -le g");
 	
 	/* MainTask4_2.java */
-	// LearningAgent learningAgent = new LearningWithMC("-lco off -lb on -le off -lhb off -lg on -ltb on -lhs off -lca on -lde on -ld 5 -ls 133829");
+	//LearningAgent learningAgent = new LearningWithMC("-lco off -lb on -le off -lhb off -lg on -ltb on -lhs off -lca on -lde on -ld 5 -ls 133829");
 	
 	/* MainTask4_3.java */
 	// LearningAgent learningAgent = new LearningWithMC("-lde on -i off -ld 30 -ls 133434 -lhb on");
@@ -162,8 +165,8 @@ public static void main(String[] args){
 	/* パラメータを設定する */
 	MarioAIOptions marioAIOptions = new MarioAIOptions(args);
 	//LearningAgent learningAgent = new MLPESLearningAgent(); // Learning track competition entry goes here
-	evaluateSubmission(marioAIOptions,learningAgent);
-	//replay("MonteCarloMainTask3.txt",marioAIOptions,(LearningWithMC2)learningAgent);
+	// evaluateSubmission(marioAIOptions,learningAgent);
+	replay("MonteCarlo4-1.txt",marioAIOptions,(LearningWithMC)learningAgent);
 
 
 	/* 学習するステージを生成 */

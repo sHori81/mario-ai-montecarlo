@@ -13,7 +13,7 @@ public class MCAgent extends BasicMarioAIAgent implements Agent{
 	//前方2マスの縦何マスを取得するか
 	public static final int width = 3;
 	//取り得る行動の数
-	public static final int numOfAction = 12;
+	public static final int numOfAction = 18;
 	//J：ジャンプ　S：ファイア　R：右　L：左　D：下
 	/*enum Action{
 		J,
@@ -30,7 +30,7 @@ public class MCAgent extends BasicMarioAIAgent implements Agent{
 		NONE,
 	}*/
 	//毎フレームもっとも価値の高い行動をするが、確率epsilonで他の行動を等確率で選択
-	public static final float epsilon = 0.005f;
+	public static final float epsilon = 0.05f;
 	//もっとも良い選択の再現に使用
 	private static int frameCounter = 0;
 	//毎エピソードで選択した行動を全フレーム分とっておく
@@ -45,17 +45,26 @@ public class MCAgent extends BasicMarioAIAgent implements Agent{
 	private static int cliff = 0;
 	//マリオがジャンプできるか 0 : できない 1 : できる
 	private static int ableToJump = 0;
+	//壁の検出
+	private static int wall = 0;
+	
+	static float now_distancePassedPhys = 0;
+	static float before_distancePassedPhys = 0;
+	static float best_distancePassedPhys = 0;
+	static float penalty = 0;
+	static int counter = 0;
+	
 	//毎フレームで貪欲な選択をするかどうか
 	public static boolean mode = false;
 	//各エピソードで、ある状態である行動を取ったかどうか KeyOfMCはint4つでstate,cliff,ableToJump,action
 	//valueのIntegerはこのMCでは使わない
 	public static HashMap<KeyOfMC,Integer> selected;
 	//行動価値関数　これを基に行動を決める
-	public static float[][][][] qValue;
+	public static float[][][][][] qValue;
 	//各状態行動対におけるそれまで得た報酬の合計
-	public static float[][][][] sumValue;
+	public static float[][][][][] sumValue;
 	//ある状態である行動を取った回数
-	public static int[][][][] num;
+	public static int[][][][][] num;
 	public static void setMode(boolean b){
 		mode = b;
 	}
@@ -98,18 +107,20 @@ public class MCAgent extends BasicMarioAIAgent implements Agent{
 	//コンストラクタ
 	public MCAgent(){
 		super(name);
-		qValue = new float[(int)Math.pow(2.0,4 * width + 1)][2][2][numOfAction];
-		sumValue = new float[(int)Math.pow(2.0,4 * width  + 1)][2][2][numOfAction];
-		num = new int[(int)Math.pow(2.0,4 * width + 1)][2][2][numOfAction];
+		qValue = new float[(int)Math.pow(2.0,4 * width + 1)][2][2][2][numOfAction];
+		sumValue = new float[(int)Math.pow(2.0,4 * width  + 1)][2][2][2][numOfAction];
+		num = new int[(int)Math.pow(2.0,4 * width + 1)][2][2][2][numOfAction];
 		selected = new HashMap<KeyOfMC,Integer>();
 		for(int i = 0; i < (int)Math.pow(2.0,4 * width + 1); ++i){
 			for(int j = 0; j < 2; ++j){
 				for(int k = 0; k < 2; ++k){
-					for(int t = 0; t < numOfAction; ++t){
-						qValue[i][j][k][t] = 0.0f;
-						//一応全パターンは1回は試したいのである程度の値は持たせる
-						sumValue[i][j][k][t] = 4096.0f;
-						num[i][k][k][t] = 1;
+					for(int w=0; w<2; ++w) {
+						for(int t = 0; t < numOfAction; ++t){
+							qValue[i][j][k][w][t] = 0.0f;
+							//一応全パターンは1回は試したいのである程度の値は持たせる
+							sumValue[i][j][k][w][t] = 4096.0f;
+							num[i][k][k][w][t] = 1;
+						}
 					}
 				}
 			}
@@ -118,12 +129,12 @@ public class MCAgent extends BasicMarioAIAgent implements Agent{
 		best = new ArrayList<Integer>();
 	}
 	//行動価値関数を取得
-	public static float[][][][] getQ(){
+	public static float[][][][][] getQ(){
 		return qValue;
 	}
 	//行動価値関数を取得
 	//学習した後に再現で使う
-	public static void setQ(float[][][][] q){
+	public static void setQ(float[][][][][] q){
 		qValue = q;
 	}
 	//障害物を検出し、stateの各bitに0,1で格納
@@ -158,13 +169,26 @@ public class MCAgent extends BasicMarioAIAgent implements Agent{
 	public void detectCliff(){
 		
 		boolean b = true;
-		for(int i = 0; i < 10; ++i){
+		for(int i = -8; i < 8; ++i){
 			if(getReceptiveFieldCellValue(marioEgoRow + i,marioEgoCol + 1) != 0){
 				b = false;
 				break;
 			}
 		}
 		cliff = (b) ? 1 : 0;
+	}
+	
+	//壁検出
+	public void detectWall(){
+		
+			boolean b = true;
+			for(int i = -1; i < 4; ++i){
+				if(getReceptiveFieldCellValue(marioEgoRow - i ,marioEgoCol + 1) == 0){
+					b = false;
+					break;
+				}
+			}
+		wall = (b) ? 1 : 0;
 	}
 	//ソフトマックス手法
 	//使わない
@@ -201,7 +225,7 @@ public class MCAgent extends BasicMarioAIAgent implements Agent{
 		}else{
 			float max = -Float.MAX_VALUE;
 			for(int i = 0; i < numOfAction; ++i){
-				float q = qValue[state][cliff][ableToJump][i];
+				float q = qValue[state][cliff][wall][ableToJump][i];
 				if(q > max){
 					max = q;
 					idx = i;
@@ -215,7 +239,7 @@ public class MCAgent extends BasicMarioAIAgent implements Agent{
 		int idx = 0;
 		float max = -Float.MAX_VALUE;
 		for(int i = 0; i < numOfAction; ++i){
-			float q = qValue[state][cliff][ableToJump][i];
+			float q = qValue[state][cliff][wall][ableToJump][i];
 			if(q > max){
 				max = q;
 				idx = i;
@@ -229,22 +253,102 @@ public class MCAgent extends BasicMarioAIAgent implements Agent{
 			action[i] = false;
 		}
 	}
+	
+	public void jumptoRight() {
+		action[Mario.KEY_RIGHT] = true;
+		action[Mario.KEY_JUMP] = true;
+	}
+	
+	public void jumptoLeft() {
+		action[Mario.KEY_LEFT] = true;
+		action[Mario.KEY_JUMP] = true;
+	}
+	
+	static boolean bpenalty = false;
+	//停止している場合ペナルティー
+	public void evaluateStop() {
+		now_distancePassedPhys = distancePassedPhys;
+		if(Math.abs(now_distancePassedPhys - before_distancePassedPhys) < 16.0f) {
+			penalty += 3;
+		}else if (now_distancePassedPhys - before_distancePassedPhys >24.0f || penalty > 0) {
+			penalty -= 1;
+		}
+		before_distancePassedPhys = now_distancePassedPhys;
+		if(penalty > 60) {
+			bpenalty = true;
+		}	
+	}
+	
+	
+	
 	//int(0-11)をacitonにする
 	public void intToAction(int n){
+		if(bpenalty) {
+			
+		if(0 <= n && n <= 5 && getReceptiveFieldCellValue(marioEgoRow,marioEgoCol + 1) != 0) {
+			action[Mario.KEY_LEFT] = true;
+		}
+		if(0 <= n && n <= 5 && getReceptiveFieldCellValue(marioEgoRow,marioEgoCol + 1) == 0) {
+			action[Mario.KEY_LEFT] = true;
+		}
+		if(6 <= n && n <= 11) {
+			action[Mario.KEY_JUMP] = true;
+		}
+		if(12 <= n && n <= 17) {
+			action[Mario.KEY_SPEED] = true;
+		}
+		penalty -= 1;
+		
+		if(penalty < 70) {
+			bpenalty = false;
+		}
+		
+		}else {
 		if(n == 0 || (n > 4 && n < 11))
 			action[Mario.KEY_JUMP] = true;
 		if(n == 1 || n == 5 || n == 9 || n == 10)
 			action[Mario.KEY_SPEED] = true;
-		if(n == 2 || n == 6 || n == 9)
+		if((n == 2 || n == 6 || n == 9 || n == 10) )
+			if(wall == 0) {action[Mario.KEY_RIGHT] = true;}
+		if((n == 2 || n == 6 || n == 9 || n == 10))
+			if(wall == 1) {action[Mario.KEY_LEFT] = true;}
+		if(n == 12 || n == 13 || n == 14)
+			jumptoRight();
+		if((n == 15 || n == 16 || n == 17) && distancePassedPhys > 1600)
+			jumptoLeft();
+		if(n == 3 || n == 7)
 			action[Mario.KEY_RIGHT] = true;
-		if(n == 3 || n == 7 || n == 10)
-			action[Mario.KEY_LEFT] = true;
-		if(n == 4 || n == 8)
+		if(n == 4 )
 			action[Mario.KEY_DOWN] = true;
+		}
 	}
 	public boolean[] getAction(){
+		
 		detectObstacle();
 		detectCliff();
+		detectWall();
+		
+		if(counter % 24 == 0) {
+			evaluateStop();
+			counter = 0;
+		}
+		counter++;
+		
+		if(best_distancePassedPhys < distancePassedPhys) {best_distancePassedPhys = distancePassedPhys;}
+		
+		if(getEnemiesCellValue(marioEgoRow,marioEgoCol + 1) != 0) {
+			action[Mario.KEY_JUMP] = true;
+			
+		if(1600 < distancePassedPhys && distancePassedPhys < 2200 &&
+				(getReceptiveFieldCellValue(marioEgoRow-2,marioEgoCol + 1) != 0	|| 
+				(getReceptiveFieldCellValue(marioEgoRow-2,marioEgoCol + 2) != 0 ||
+				getReceptiveFieldCellValue(marioEgoRow-3,marioEgoCol + 2) != 0 ||
+				getReceptiveFieldCellValue(marioEgoRow-4,marioEgoCol + 2) != 0) ||
+				getReceptiveFieldCellValue(marioEgoRow+1,marioEgoCol + 1) == 0) ){
+			action[Mario.KEY_JUMP] = true;
+		}
+			
+		}
 		ableToJump = boolToInt(isMarioAbleToJump);
 		clearAction();
 		int currAction = 0;
@@ -252,10 +356,10 @@ public class MCAgent extends BasicMarioAIAgent implements Agent{
 			currAction = chooseAction();
 			actions.add(currAction);
 			intToAction(currAction);
-			if(!selected.containsKey(new KeyOfMC(state,cliff,ableToJump,currAction)))
-				selected.put(new KeyOfMC(state,cliff,ableToJump,currAction),1);	
+			if(!selected.containsKey(new KeyOfMC(state,cliff,wall,ableToJump,currAction)))
+				selected.put(new KeyOfMC(state,cliff,wall,ableToJump,currAction),1);	
 			else
-				selected.put(new KeyOfMC(state,cliff,ableToJump,currAction), selected.get(new KeyOfMC(state,cliff,ableToJump,currAction)) + 1);
+				selected.put(new KeyOfMC(state,cliff,wall,ableToJump,currAction), selected.get(new KeyOfMC(state,cliff,wall,ableToJump,currAction)) + 1);
 		}
 		else{
 			//currAction = chooseActionG();
